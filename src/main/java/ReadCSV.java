@@ -31,8 +31,8 @@ public class ReadCSV {
     }
 
     public static void readCSV(String fileName) throws FileNotFoundException, IOException {
-        SparkConf conf = new SparkConf().setAppName("Ensemble").setMaster("spark://myhost:7077");
-        JavaSparkContext sc = new JavaSparkContext(conf);
+        //SparkConf conf = new SparkConf().setAppName("Ensemble").setMaster("spark://myhost:7077");
+        //JavaSparkContext sc = new JavaSparkContext(conf);
 
 
         //load and parse data
@@ -44,26 +44,27 @@ public class ReadCSV {
         List<CSVRecord> list = parser.getRecords();
         List<LabeledPoint> labeledList = new ArrayList<LabeledPoint>(list.size());
 
+
         for (int i = 0; i < list.size(); i++) {
             CSVRecord record = list.get(i);
             String stringLabels = record.get(record.size() - 1);
             if (!seenLabels.containsKey(stringLabels))
                 seenLabels.put(stringLabels, seenLabels.size());
-            System.out.print(seenLabels.get(stringLabels));
-            double[] doubleArray = new double[record.size()];
-            for (int j = 0; j < record.size() - 1; j++) {
-                Double d = Double.valueOf(record.get(j));
-                doubleArray[j] = d;
-            }
+
+            double[] doubleArray = new double[record.size() - 1];
+            for (int j = 0; j < record.size() - 1; j++)
+                doubleArray[j] = Double.valueOf(record.get(j));
 
 
-            LabeledPoint labeledRecord = new LabeledPoint(seenLabels.get(stringLabels),Vectors.dense(doubleArray));
+            LabeledPoint labeledRecord = new LabeledPoint(seenLabels.get(stringLabels), Vectors.dense(doubleArray));
             labeledList.add(i, labeledRecord);
 
+
         }
+        System.out.println(labeledList);
 
 
-        JavaRDD<LabeledPoint> distData = sc.parallelize(labeledList);
+        // JavaRDD<LabeledPoint> distData = sc.parallelize(labeledList);
 
     }
 }
