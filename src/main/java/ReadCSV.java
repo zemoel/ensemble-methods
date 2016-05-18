@@ -2,12 +2,6 @@
  * Created by pekasa on 05.05.16.
  */
 
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.IOException;
-import java.io.Reader;
-import java.nio.charset.Charset;
-import java.util.*;
 
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
@@ -15,26 +9,29 @@ import org.apache.commons.csv.CSVRecord;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.api.java.function.Function;
-import org.apache.spark.mllib.linalg.Vector;
 import org.apache.spark.mllib.linalg.Vectors;
 import org.apache.spark.mllib.regression.LabeledPoint;
-import org.apache.spark.util.SystemClock;
+
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.Reader;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 
 public class ReadCSV {
-    // parse a csv file and convert it to JavaRDD
+     //parse a csv file and convert it to JavaRDD
 
-    public static void main(String[] args) throws IOException {
-        ReadCSV.readCSV(" ");
+   public static void main(String[] args) throws IOException {
+        ReadCSV.buildBaseModels();
 
     }
 
-    public static void readCSV(String fileName) throws FileNotFoundException, IOException {
-        //SparkConf conf = new SparkConf().setAppName("Ensemble").setMaster("spark://myhost:7077");
-        //JavaSparkContext sc = new JavaSparkContext(conf);
-
-
+    public static JavaRDD<LabeledPoint> readCSV() throws IOException {
+        SparkConf conf = new SparkConf().setAppName("Ensemble").setMaster("local[2]");
+        JavaSparkContext sc = new JavaSparkContext(conf);
         //load and parse data
 
         Map<String, Integer> seenLabels = new HashMap<String, Integer>();
@@ -56,16 +53,32 @@ public class ReadCSV {
                 doubleArray[j] = Double.valueOf(record.get(j));
 
 
-            LabeledPoint labeledRecord = new LabeledPoint(seenLabels.get(stringLabels), Vectors.dense(doubleArray));
-            labeledList.add(i, labeledRecord);
 
+           LabeledPoint labeledRecord = new LabeledPoint(seenLabels.get(stringLabels), Vectors.dense(doubleArray));
+           labeledList.add(labeledRecord);
 
         }
-        System.out.println(labeledList);
 
 
-        // JavaRDD<LabeledPoint> distData = sc.parallelize(labeledList);
+
+         JavaRDD<LabeledPoint> distData = sc.parallelize(labeledList);
+        // System.out.print(distData);
+
+        return  distData;
+
 
     }
+    // create a method here to build models
+    // train a model and return predictions
+    // feed predictions to Stacking
+    public static void buildBaseModels() throws IOException{
+        JavaRDD<LabeledPoint> inputData = readCSV().cache();
+        JavaRDD<LabeledPoint>[] tmp = inputData.randomSplit(new double[]{0.7, 0.3});
+        JavaRDD<LabeledPoint> trainingData = tmp[0];
+        JavaRDD<LabeledPoint> testingData = tmp[1];
+
+
+
+}
 }
 
