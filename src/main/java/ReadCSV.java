@@ -7,10 +7,13 @@ import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
 import org.apache.spark.SparkConf;
+import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.mllib.linalg.Vectors;
 import org.apache.spark.mllib.regression.LabeledPoint;
+import org.apache.spark.mllib.tree.model.RandomForestModel;
+import org.wso2.carbon.ml.core.spark.algorithms.RandomForestClassifier;
 
 import java.io.FileReader;
 import java.io.IOException;
@@ -71,11 +74,35 @@ public class ReadCSV {
     // create a method here to build models
     // train a model and return predictions
     // feed predictions to Stacking
-    public static void buildBaseModels() throws IOException{
+    public static JavaPairRDD<Double,Double> buildBaseModels() throws IOException{
+        // Method for test how RandomForest works on iris dataset.
         JavaRDD<LabeledPoint> inputData = readCSV().cache();
         JavaRDD<LabeledPoint>[] tmp = inputData.randomSplit(new double[]{0.7, 0.3});
         JavaRDD<LabeledPoint> trainingData = tmp[0];
         JavaRDD<LabeledPoint> testingData = tmp[1];
+
+        RandomForestClassifier randomForestClassifier = new RandomForestClassifier();
+        Integer numClasses = 4;
+        HashMap<Integer, Integer> categoricalFeaturesInfo = new HashMap<Integer, Integer>();
+        Integer numTrees = 3; // Use more in practice.
+        String featureSubsetStrategy = "auto"; // Let the algorithm choose.
+        String impurity = "entropy";
+        Integer maxDepth = 5;
+        Integer maxBins = 32;
+        Integer seed = 12345;
+
+        final RandomForestModel model = randomForestClassifier.train(trainingData, numClasses,
+                categoricalFeaturesInfo, numTrees, featureSubsetStrategy, impurity, maxDepth, maxBins,
+                seed);
+
+        // remove from cache
+        trainingData.unpersist();
+        // add test data to cache
+        testingData.cache();
+
+        JavaPairRDD<Double, Double> predictionsAndLabels = randomForestClassifier.test(model, testingData).cache();
+        System.out.println(predictionsAndLabels);
+        return  predictionsAndLabels;
 
 
 
