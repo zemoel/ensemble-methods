@@ -12,7 +12,10 @@ import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.mllib.linalg.Vectors;
 import org.apache.spark.mllib.regression.LabeledPoint;
+import org.apache.spark.mllib.tree.model.DecisionTreeModel;
 import org.apache.spark.mllib.tree.model.RandomForestModel;
+import org.wso2.carbon.ml.commons.constants.MLConstants;
+import org.wso2.carbon.ml.core.spark.algorithms.DecisionTree;
 import org.wso2.carbon.ml.core.spark.algorithms.RandomForestClassifier;
 
 import java.io.FileReader;
@@ -74,38 +77,78 @@ public class ReadCSV {
     // create a method here to build models
     // train a model and return predictions
     // feed predictions to Stacking
-    public static JavaPairRDD<Double,Double> buildBaseModels() throws IOException{
+    public static void buildBaseModels() throws IOException {
         // Method for test how RandomForest works on iris dataset.
+        //TODO: Add another basemodel, combine predictions in a JavaPairRDD[]<LabeledPoint>
         JavaRDD<LabeledPoint> inputData = readCSV().cache();
         JavaRDD<LabeledPoint>[] tmp = inputData.randomSplit(new double[]{0.7, 0.3});
         JavaRDD<LabeledPoint> trainingData = tmp[0];
         JavaRDD<LabeledPoint> testingData = tmp[1];
+        String algorithmName = "DECISION_TREE";
+        JavaPairRDD<Double, Double> prediction = null;
+        // Creating switch statement
+        MLConstants.SUPERVISED_ALGORITHM supervisedAlgorithm = MLConstants.SUPERVISED_ALGORITHM.valueOf(algorithmName);
+        switch(supervisedAlgorithm){
+            case RANDOM_FOREST_CLASSIFICATION:
+                prediction = buildRandomForest(trainingData,testingData);
+                break;
+            case DECISION_TREE:
+                prediction = buildDecisionTree(trainingData, testingData);
 
-        RandomForestClassifier randomForestClassifier = new RandomForestClassifier();
+        }
+
+
+    }
+    public static JavaPairRDD<Double, Double> buildRandomForest(JavaRDD<LabeledPoint> trainingData, JavaRDD<LabeledPoint> testingData)
+        {
+            RandomForestClassifier randomForestModel = new RandomForestClassifier();
+            Integer numClasses = 4;
+            HashMap<Integer, Integer> categoricalFeaturesInfo = new HashMap<Integer, Integer>();
+            Integer numTrees = 3; // Use more in practice.
+            String featureSubsetStrategy = "auto"; // Let the algorithm choose.
+            String impurity = "entropy";
+            Integer maxDepth = 5;
+            Integer maxBins = 32;
+            Integer seed = 12345;
+
+            final RandomForestModel model = randomForestModel.train(trainingData, numClasses,
+                    categoricalFeaturesInfo, numTrees, featureSubsetStrategy, impurity, maxDepth, maxBins,
+                    seed);
+
+            // remove from cache
+            trainingData.unpersist();
+            // add test data to cache
+            testingData.cache();
+
+            JavaPairRDD<Double, Double> predictionsAndLabels = randomForestModel.test(model, testingData).cache();
+            System.out.println(predictionsAndLabels);
+            return predictionsAndLabels;
+        }
+    public static JavaPairRDD<Double, Double> buildDecisionTree(JavaRDD<LabeledPoint> trainingData, JavaRDD<LabeledPoint> testingData){
+
         Integer numClasses = 4;
         HashMap<Integer, Integer> categoricalFeaturesInfo = new HashMap<Integer, Integer>();
-        Integer numTrees = 3; // Use more in practice.
-        String featureSubsetStrategy = "auto"; // Let the algorithm choose.
-        String impurity = "entropy";
         Integer maxDepth = 5;
         Integer maxBins = 32;
-        Integer seed = 12345;
+        String impurity = "entropy";
 
-        final RandomForestModel model = randomForestClassifier.train(trainingData, numClasses,
-                categoricalFeaturesInfo, numTrees, featureSubsetStrategy, impurity, maxDepth, maxBins,
-                seed);
-
-        // remove from cache
+        DecisionTree decisionTree = new DecisionTree();
+        DecisionTreeModel decisionTreeModel = decisionTree.train(trainingData, numClasses,
+                categoricalFeaturesInfo,impurity,
+                maxDepth,
+                maxBins);
         trainingData.unpersist();
         // add test data to cache
         testingData.cache();
 
-        JavaPairRDD<Double, Double> predictionsAndLabels = randomForestClassifier.test(model, testingData).cache();
-        System.out.println(predictionsAndLabels);
-        return  predictionsAndLabels;
+        JavaPairRDD<Double, Double> predictionsAndLabels = decisionTree.test(decisionTreeModel, testingData)
+                .cache();
+
+        return predictionsAndLabels;
+    }
 
 
 
 }
-}
+
 
