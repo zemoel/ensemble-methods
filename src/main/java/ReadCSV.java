@@ -31,11 +31,13 @@ public class ReadCSV {
      //parse a csv file and convert it to JavaRDD
 
    public static void main(String[] args) throws IOException {
-        ReadCSV.buildBaseModels();
+        //ReadCSV.buildBaseModels();
+        ReadCSV build = new ReadCSV();
+        //build.buildBaseModels();
 
     }
 
-    public static JavaRDD<LabeledPoint> readCSV() throws IOException {
+    public  JavaRDD<LabeledPoint> readCSV() throws IOException {
         SparkConf conf = new SparkConf().setAppName("Ensemble").setMaster("local[2]");
         JavaSparkContext sc = new JavaSparkContext(conf);
         //load and parse data
@@ -74,32 +76,30 @@ public class ReadCSV {
 
 
     }
-    // create a method here to build models
-    // train a model and return predictions
-    // feed predictions to Stacking
-    public static void buildBaseModels() throws IOException {
+
+    public JavaPairRDD<Double, Double> buildBaseModels(String algorithmName, JavaRDD<LabeledPoint> training_data,
+                                                         JavaRDD<LabeledPoint> validation_data) throws IOException {
         // Method for test how RandomForest works on iris dataset.
         //TODO: Add another basemodel, combine predictions in a JavaPairRDD[]<LabeledPoint>
-        JavaRDD<LabeledPoint> inputData = readCSV().cache();
-        JavaRDD<LabeledPoint>[] tmp = inputData.randomSplit(new double[]{0.7, 0.3});
-        JavaRDD<LabeledPoint> trainingData = tmp[0];
-        JavaRDD<LabeledPoint> testingData = tmp[1];
-        String algorithmName = "DECISION_TREE";
+
+        //algorithmName = "DECISION_TREE";
         JavaPairRDD<Double, Double> prediction = null;
         // Creating switch statement
         MLConstants.SUPERVISED_ALGORITHM supervisedAlgorithm = MLConstants.SUPERVISED_ALGORITHM.valueOf(algorithmName);
         switch(supervisedAlgorithm){
             case RANDOM_FOREST_CLASSIFICATION:
-                prediction = buildRandomForest(trainingData,testingData);
+                prediction = buildRandomForest(training_data, validation_data);
                 break;
             case DECISION_TREE:
-                prediction = buildDecisionTree(trainingData, testingData);
+                prediction =  buildDecisionTree(training_data, validation_data);
+            break;
 
         }
-
+        return prediction;
 
     }
-    public static JavaPairRDD<Double, Double> buildRandomForest(JavaRDD<LabeledPoint> trainingData, JavaRDD<LabeledPoint> testingData)
+    public JavaPairRDD<Double, Double> buildRandomForest(JavaRDD<LabeledPoint> trainingData,
+                                                         JavaRDD<LabeledPoint> validationData)
         {
             RandomForestClassifier randomForestModel = new RandomForestClassifier();
             Integer numClasses = 4;
@@ -118,13 +118,13 @@ public class ReadCSV {
             // remove from cache
             trainingData.unpersist();
             // add test data to cache
-            testingData.cache();
+            validationData.cache();
 
-            JavaPairRDD<Double, Double> predictionsAndLabels = randomForestModel.test(model, testingData).cache();
+            JavaPairRDD<Double, Double> predictionsAndLabels = randomForestModel.test(model, validationData).cache();
             System.out.println(predictionsAndLabels);
             return predictionsAndLabels;
         }
-    public static JavaPairRDD<Double, Double> buildDecisionTree(JavaRDD<LabeledPoint> trainingData, JavaRDD<LabeledPoint> testingData){
+    public  JavaPairRDD<Double, Double> buildDecisionTree(JavaRDD<LabeledPoint> trainingData, JavaRDD<LabeledPoint> validationData){
 
         Integer numClasses = 4;
         HashMap<Integer, Integer> categoricalFeaturesInfo = new HashMap<Integer, Integer>();
@@ -139,14 +139,13 @@ public class ReadCSV {
                 maxBins);
         trainingData.unpersist();
         // add test data to cache
-        testingData.cache();
+        validationData.cache();
 
-        JavaPairRDD<Double, Double> predictionsAndLabels = decisionTree.test(decisionTreeModel, testingData)
+        JavaPairRDD<Double, Double> predictionsAndLabels = decisionTree.test(decisionTreeModel, validationData)
                 .cache();
 
         return predictionsAndLabels;
     }
-
 
 
 }
