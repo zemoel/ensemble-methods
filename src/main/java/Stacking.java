@@ -1,3 +1,8 @@
+import com.joptimizer.functions.ConvexMultivariateRealFunction;
+import com.joptimizer.functions.LinearMultivariateRealFunction;
+import com.joptimizer.functions.PDQuadraticMultivariateRealFunction;
+import com.joptimizer.optimizers.JOptimizer;
+import com.joptimizer.optimizers.OptimizationRequest;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.mllib.regression.LabeledPoint;
@@ -7,6 +12,7 @@ import scala.Tuple2;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -60,22 +66,11 @@ public class Stacking {
         List<Double> predictions = null;
         ArrayList<ArrayList<Double>> matrix = new ArrayList<ArrayList<Double>>();
 
-
-        double[][] level1Dataset = new double[(int)trainDataset.count()][baseModels.size()];//TODO: Cast not safe
-
         // TODO: For every Fold train and test a model passed as list of model, combine predictions, compute alpha
         for (String model: baseModels) {
             for (Tuple2<RDD<LabeledPoint>, RDD<LabeledPoint>> fold: folds) {
-
-
                 try {
-                     modelPredictions =  build.buildBaseModels(model, fold._1().toJavaRDD(),
-                            fold._2().toJavaRDD());
-
-
-
-
-                    modelPredictions.join(modelPredictions);
+                    modelPredictions =  build.buildBaseModels(model, fold._1().toJavaRDD(),fold._2().toJavaRDD());
                     predictions = modelPredictions.keys().collect();
                     matrix.add((ArrayList<Double>) predictions);
 
@@ -85,11 +80,49 @@ public class Stacking {
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
-
             }
 
-
         }
+
+        double[][] doubleMatrix = convertArrayListdoubleArray(matrix, (int) trainDataset.count(), baseModels.size());
+        System.out.println("ARRAYLISTMATRIX" +matrix.toString()+"\n \n");
+        System.out.print(Arrays.deepToString(doubleMatrix));
+
+    }
+    public void computeWeights(double[][] level1Dataset) throws Exception {
+        double[][] P = new double[][] {{ 1., 0.4 }, { 0.4, 1. }};
+        PDQuadraticMultivariateRealFunction objectiveFunction = new PDQuadraticMultivariateRealFunction(level1Dataset, null, 0);
+
+        //equalities
+        double[][] A = new double[][]{{1,1}};
+        double[] b = new double[]{1};
+
+        //inequalities
+        ConvexMultivariateRealFunction[] inequalities = new ConvexMultivariateRealFunction[2];
+        inequalities[0] = new LinearMultivariateRealFunction(new double[]{-1, 0}, 0);
+        inequalities[1] = new LinearMultivariateRealFunction(new double[]{0, -1}, 0);
+
+        //optimization problem
+        OptimizationRequest or = new OptimizationRequest();
+        or.setF0(objectiveFunction);
+        or.setInitialPoint(new double[] { 0.1, 0.9});
+        or.setFi(inequalities); //if you want x>0 and y>0
+        or.setA(A);
+        or.setB(b);
+        or.setToleranceFeas(1.E-12);
+        or.setTolerance(1.E-12);
+
+        //optimization
+        JOptimizer opt = new JOptimizer();
+        opt.setOptimizationRequest(or);
+        int returnCode = opt.optimize();
+
+
+    }
+
+    public double[][] convertArrayListdoubleArray(ArrayList<ArrayList<Double>> matrix, int numOfModels, int trainDataSetSize){
+        double[][] level1Dataset = new double[matrix.size()][matrix.get(0).size()];
+
         for(int i= 0; i<matrix.size(); i++){
             ArrayList<Double> row = matrix.get(i);
             double[] copy = new double[row.size()];
@@ -100,9 +133,10 @@ public class Stacking {
 
         }
 
-
-
+        return level1Dataset ;
     }
+
+
     public void train(JavaRDD<LabeledPoint> trainDataset, ArrayList<String> baseModels){
 
         train(trainDataset,baseModels,2, 12345);
