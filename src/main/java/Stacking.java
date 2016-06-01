@@ -3,6 +3,8 @@ import com.joptimizer.functions.LinearMultivariateRealFunction;
 import com.joptimizer.functions.PDQuadraticMultivariateRealFunction;
 import com.joptimizer.optimizers.JOptimizer;
 import com.joptimizer.optimizers.OptimizationRequest;
+import org.apache.commons.math.linear.MatrixUtils;
+import org.apache.commons.math.linear.RealMatrix;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.mllib.regression.LabeledPoint;
@@ -85,13 +87,20 @@ public class Stacking {
         }
 
         double[][] doubleMatrix = convertArrayListdoubleArray(matrix, (int) trainDataset.count(), baseModels.size());
+
         System.out.println("ARRAYLISTMATRIX" +matrix.toString()+"\n \n");
         System.out.print(Arrays.deepToString(doubleMatrix));
 
     }
-    public void computeWeights(double[][] level1Dataset) throws Exception {
-        double[][] P = new double[][] {{ 1., 0.4 }, { 0.4, 1. }};
-        PDQuadraticMultivariateRealFunction objectiveFunction = new PDQuadraticMultivariateRealFunction(level1Dataset, null, 0);
+    /*
+    Method to compute weights for combining predictions of basemodels
+     */
+    public double[] computeWeights(double[][] level1Dataset, double[] labels, int numOfModels) throws Exception {
+        RealMatrix m = MatrixUtils.createRealMatrix(level1Dataset);
+        RealMatrix n = m.transpose();
+        RealMatrix P = m.multiply(n);
+
+         PDQuadraticMultivariateRealFunction objectiveFunction = new PDQuadraticMultivariateRealFunction(P.getData(), null, 0);
 
         //equalities
         double[][] A = new double[][]{{1,1}};
@@ -99,8 +108,12 @@ public class Stacking {
 
         //inequalities
         ConvexMultivariateRealFunction[] inequalities = new ConvexMultivariateRealFunction[2];
-        inequalities[0] = new LinearMultivariateRealFunction(new double[]{-1, 0}, 0);
-        inequalities[1] = new LinearMultivariateRealFunction(new double[]{0, -1}, 0);
+        RealMatrix negativeIdentityMatrix = MatrixUtils.createRealIdentityMatrix(numOfModels);
+
+        for (int i = 0; i <= numOfModels; i++) {
+            inequalities[0] = new LinearMultivariateRealFunction(negativeIdentityMatrix .getData()[i], 0);
+
+        }
 
         //optimization problem
         OptimizationRequest or = new OptimizationRequest();
@@ -116,6 +129,9 @@ public class Stacking {
         JOptimizer opt = new JOptimizer();
         opt.setOptimizationRequest(or);
         int returnCode = opt.optimize();
+        double[] weights = opt.getOptimizationResponse().getSolution();
+        return weights;
+
 
 
     }
