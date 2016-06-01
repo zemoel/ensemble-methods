@@ -109,7 +109,8 @@ public class Stacking {
         //inequalities
         ConvexMultivariateRealFunction[] inequalities = new ConvexMultivariateRealFunction[2];
         RealMatrix negativeIdentityMatrix = MatrixUtils.createRealIdentityMatrix(numOfModels);
-
+        negativeIdentityMatrix = negativeIdentityMatrix.scalarMultiply(-1.0);
+        negativeIdentityMatrix = negativeIdentityMatrix.scalarAdd(0.0);
         for (int i = 0; i <= numOfModels; i++) {
             inequalities[0] = new LinearMultivariateRealFunction(negativeIdentityMatrix .getData()[i], 0);
 
