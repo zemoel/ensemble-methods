@@ -35,11 +35,20 @@ public class ReadCSV {
         ReadCSV build = new ReadCSV();
         //build.buildBaseModels();
 
+
+    }
+    public JavaSparkContext convertToRDD(){
+        SparkConf conf = new SparkConf().setAppName("Ensemble").setMaster("local[2]");//.set("spark.driver.allowMultipleContexts", "true");
+        JavaSparkContext sc = new JavaSparkContext(conf);
+
+        return sc;
+
     }
 
     public  JavaRDD<LabeledPoint> readCSV() throws IOException {
-        SparkConf conf = new SparkConf().setAppName("Ensemble").setMaster("local[2]");
-        JavaSparkContext sc = new JavaSparkContext(conf);
+
+
+
         //load and parse data
 
         Map<String, Integer> seenLabels = new HashMap<String, Integer>();
@@ -68,21 +77,21 @@ public class ReadCSV {
         }
 
 
-
+         JavaSparkContext sc = convertToRDD();
          JavaRDD<LabeledPoint> distData = sc.parallelize(labeledList);
-        // System.out.print(distData);
+         //System.out.println(labeledList);
 
         return  distData;
 
 
     }
 
+
     public JavaPairRDD<Double, Double> buildBaseModels(String algorithmName, JavaRDD<LabeledPoint> training_data,
                                                          JavaRDD<LabeledPoint> validation_data) throws IOException {
         // Method for test how RandomForest works on iris dataset.
         //TODO: Add another basemodel, combine predictions in a JavaPairRDD[]<LabeledPoint>
 
-        //algorithmName = "DECISION_TREE";
         JavaPairRDD<Double, Double> prediction = null;
         // Creating switch statement
         MLConstants.SUPERVISED_ALGORITHM supervisedAlgorithm = MLConstants.SUPERVISED_ALGORITHM.valueOf(algorithmName);
@@ -121,7 +130,8 @@ public class ReadCSV {
             validationData.cache();
 
             JavaPairRDD<Double, Double> predictionsAndLabels = randomForestModel.test(model, validationData).cache();
-            System.out.println(predictionsAndLabels);
+            System.out.println(predictionsAndLabels.values());
+
             return predictionsAndLabels;
         }
     public  JavaPairRDD<Double, Double> buildDecisionTree(JavaRDD<LabeledPoint> trainingData, JavaRDD<LabeledPoint> validationData){
