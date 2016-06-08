@@ -9,6 +9,7 @@ import org.apache.commons.csv.CSVRecord;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.mllib.linalg.Vector;
 import org.apache.spark.mllib.linalg.Vectors;
 import org.apache.spark.mllib.regression.LabeledPoint;
 import scala.Tuple2;
@@ -31,35 +32,6 @@ public class ReadCSV{
        JavaRDD<LabeledPoint> rddata = build.readCSV();
        // build.parse();
 
-
-    }
-    public JavaSparkContext convertToRDD(){
-        SparkConf conf = new SparkConf().setAppName("Ensemble").setMaster("local[2]");//.set("spark.driver.allowMultipleContexts", "true");
-        JavaSparkContext sc = new JavaSparkContext(conf);
-
-        return sc;
-
-    }
-
-    public List<String[]> LabeledpointToListStringArray( JavaRDD<LabeledPoint> rddata) {
-        List<String[]> dataToBePredicted = new ArrayList<String[]>();
-        List<LabeledPoint> list = rddata.collect();
-
-        for(LabeledPoint item : list ){
-            String[] labeledPointFeatures = new String[item.features().size()];
-            double[] vector = item.features().toArray();
-
-            for(int k= 0; k<vector.length; k++){
-                labeledPointFeatures[k] = (Double.toString(vector[k]));
-
-
-            }
-            dataToBePredicted.add(labeledPointFeatures);
-
-        }
-
-
-        return dataToBePredicted;
 
     }
 
@@ -110,6 +82,68 @@ public class ReadCSV{
         JavaRDD<LabeledPoint>[] tmp = inputData.randomSplit(new double[]{0.7, 0.3});
 
         return new Tuple2<JavaRDD<LabeledPoint>, JavaRDD<LabeledPoint>>(tmp[0], tmp[1]);
+    }
+
+
+
+    public double[][] convertArrayListdoubleArray(ArrayList<ArrayList<Double>> matrix, int numOfModels, int trainDataSetSize){
+        double[][] level1Dataset = new double[matrix.size()][matrix.get(0).size()];
+
+        for(int i= 0; i<matrix.size(); i++){
+            ArrayList<Double> row = matrix.get(i);
+            double[] copy = new double[row.size()];
+            for(int j = 0; j< copy.length; j++){
+                copy[j] = row.get(j);
+            }
+            level1Dataset[i] = copy;
+
+        }
+
+        return level1Dataset ;
+    }
+
+    public Vector listToVector(List<?> list){
+        List<Double> listDouble = (List<Double>) list;
+
+        double[] doubleArray = new double[list.size()];
+        for(int i= 0; i < listDouble.size(); i++){
+            doubleArray[i] = listDouble.get(i);
+
+        }
+        Vector vector = Vectors.dense(doubleArray);
+
+        return vector;
+    }
+
+    public List<String[]> LabeledpointToListStringArray( JavaRDD<LabeledPoint> rddata) {
+        List<String[]> dataToBePredicted = new ArrayList<String[]>();
+        List<LabeledPoint> list = rddata.collect();
+
+        for(LabeledPoint item : list ){
+            String[] labeledPointFeatures = new String[item.features().size()];
+            double[] vector = item.features().toArray();
+
+            for(int k= 0; k<vector.length; k++){
+                labeledPointFeatures[k] = (Double.toString(vector[k]));
+
+
+            }
+            dataToBePredicted.add(labeledPointFeatures);
+
+        }
+
+
+        return dataToBePredicted;
+
+    }
+
+
+    public JavaSparkContext convertToRDD(){
+        SparkConf conf = new SparkConf().setAppName("Ensemble").setMaster("local[2]");//.set("spark.driver.allowMultipleContexts", "true");
+        JavaSparkContext sc = new JavaSparkContext(conf);
+
+        return sc;
+
     }
 
 
