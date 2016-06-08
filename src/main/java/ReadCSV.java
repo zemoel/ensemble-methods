@@ -26,9 +26,8 @@ public class ReadCSV{
      //parse a csv file and convert it to JavaRDD
 
     public static void main(String[] args) throws IOException {
-        //ReadCSV.buildBaseModels();
-        ReadCSV build = new ReadCSV();
-        //build.buildBaseModels();
+       ReadCSV build = new ReadCSV();
+
        JavaRDD<LabeledPoint> rddata = build.readCSV();
        // build.parse();
 
