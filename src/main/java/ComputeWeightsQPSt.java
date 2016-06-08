@@ -22,10 +22,10 @@ import java.util.List;
  */
 
 
-public class StackingWithQP {
+public class ComputeWeightsQPSt {
 
     public static void main(String[] args) throws IOException {
-        StackingWithQP s = new StackingWithQP();
+        ComputeWeightsQPSt s = new ComputeWeightsQPSt();
         Tuple2<JavaRDD<LabeledPoint>, JavaRDD<LabeledPoint>> datasets = s.preProcess();
 
         JavaRDD<LabeledPoint> training_data = datasets._1();
@@ -47,10 +47,10 @@ public class StackingWithQP {
         return new Tuple2<JavaRDD<LabeledPoint>, JavaRDD<LabeledPoint>>(tmp[0], tmp[1]);
     }
     /**
-     * This method trains an StackingWithQP ensemble model
+     * This method trains an ComputeWeightsQPSt ensemble model
      *
      * @param  trainDataset            Training dataset as a JavaRDD of labeled points
-     * @param  baseModels              List of basemodels selected for ensembling using StackingWithQP
+     * @param  baseModels              List of basemodels selected for ensembling using ComputeWeightsQPSt
      * @param  numFolds
      * @param  seed
      * @return
@@ -76,6 +76,7 @@ public class StackingWithQP {
             for (Tuple2<RDD<LabeledPoint>, RDD<LabeledPoint>> fold: folds) {
                 try {
                     modelPredictions =  build.buildBaseModels(model, fold._1().toJavaRDD(),fold._2().toJavaRDD());
+                    System.out.println(fold._2().collect().toString());
                     predictions = modelPredictions.keys().collect();
                     labels = modelPredictions.values().collect();
                     matrix.add((ArrayList<Double>) predictions);
