@@ -51,6 +51,9 @@ public class Stacking {
         Tuple2<RDD<LabeledPoint>, RDD<LabeledPoint>>[] folds =  MLUtils.kFold(r, numFolds, seed, trainDataset.classTag());
         List<LabeledPoint> labeledList = new ArrayList<LabeledPoint>();
         ArrayList<ArrayList<Double>> matrix = new ArrayList<ArrayList<Double>>();
+        List<?> predictions = null;
+        List<?> modelPredictions = null;
+       // Vector featureVector = Vectors.zeros()
 
         // TODO: For every Fold train and test a model passed as list of model, combine predictions, compute alpha
         for (String model: baseModels) {
@@ -60,19 +63,36 @@ public class Stacking {
                  List<String[]> dataTobePredicted = convert.LabeledpointToListStringArray(validationData);
                  MLModel basemodel = build.buildBaseModels(model, fold._1.toJavaRDD(), fold._2.toJavaRDD());
                  Predictor predictor = new Predictor(modelId, basemodel,dataTobePredicted );
-                 List<?> predictions = predictor.predict();
-
-                 System.out.println("RandomForestPredictions" +predictions);
-
-
-                 //TODO: There must be a way to convert javapairrdd to matrix
+                 predictions = predictor.predict();
+                                  //TODO: There must be a way to convert javapairrdd to matrix
 
              }
+
+
+
+            // Add the predictions of one model to one list
+            // call convert to listToVector here
+            // get level0m labels
+            // Create Labeledpredictions
+            System.out.println("Predictions" + modelPredictions);
+
+
         }
+
+        // Convert List<?> to List<LabeledPoint>
+
+       // LabeledPoint labeledPredictions = new LabeledPoint(double label, Vector(features))
+
+
+        // Convert List<LabeledPoint> to JavaRDD<LabeledPoint>
+        //JavaSparkContext sc = convert.convertToRDD();
+        //JavaRDD<LabeledPoint> levelZeroDataset = sc.parallelize(labeledList);
+
+
 
 
         // add predictions here to a list to form level1dataset
-        // Call RandomForest on level1 dataset and set it to levelOneModel
+        // Call RandomForest on level1 dataset and set it to levelOneModel, maybe reuse buildbasemodels randomforest
         levelOneModel = null;
         levelZeroModels = null;
 
