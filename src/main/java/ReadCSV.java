@@ -7,16 +7,11 @@ import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
 import org.apache.spark.SparkConf;
-import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.mllib.linalg.Vectors;
 import org.apache.spark.mllib.regression.LabeledPoint;
-import org.apache.spark.mllib.tree.model.DecisionTreeModel;
-import org.apache.spark.mllib.tree.model.RandomForestModel;
-import org.wso2.carbon.ml.commons.constants.MLConstants;
-import org.wso2.carbon.ml.core.spark.algorithms.DecisionTree;
-import org.wso2.carbon.ml.core.spark.algorithms.RandomForestClassifier;
+import scala.Tuple2;
 
 import java.io.FileReader;
 import java.io.IOException;
@@ -29,53 +24,7 @@ import java.util.Map;
 
 public class ReadCSV{
      //parse a csv file and convert it to JavaRDD
-    /*
-    public ReadCSV(MLModelConfigurationContext context) {
-         super(context);
-     }
-    public MLModel build() throws MLModelBuilderException {
-        MLModelConfigurationContext context = getContext();
-        JavaSparkContext sparkContext = null;
-        DatabaseService databaseService = MLCoreServiceValueHolder.getInstance().getDatabaseService();
-        MLModel mlModel = new MLModel();
-        try {
-            sparkContext = context.getSparkContext();
-            Workflow workflow = context.getFacts();
-            long modelId = context.getModelId();
 
-            // Verify validity of response variable
-            String typeOfResponseVariable = getTypeOfResponseVariable(workflow.getResponseVariable(),
-                    workflow.getFeatures());
-
-            if (typeOfResponseVariable == null) {
-                throw new MLModelBuilderException("Type of response variable cannot be null for supervised learning "
-                        + "algorithms.");
-            }
-
-            // Stops model building if a categorical attribute is used with numerical prediction
-            if (workflow.getAlgorithmClass().equals(AlgorithmType.NUMERICAL_PREDICTION.getValue())
-                    && typeOfResponseVariable.equals(FeatureType.CATEGORICAL)) {
-                throw new MLModelBuilderException("Categorical attribute " + workflow.getResponseVariable()
-                        + " cannot be used as the response variable of the Numerical Prediction algorithm: "
-                        + workflow.getAlgorithmName());
-            }
-        } catch (DatabaseHandlerException e) {
-            throw new MLModelBuilderException("An error occurred while building supervised machine learning model: "
-                    + e.getMessage(), e);
-        }
-        return null;
-    }
-    public MLModel getBaseModels(String algorithmName){
-        MLModel baseModels = new MLModel();
-        baseModels.setAlgorithmName(MLConstants.SUPERVISED_ALGORITHM.valueOf(algorithmName).toString());
-        MLModelConfigurationContext context = getContext();
-        sparkContext = context.getSparkContext();
-        Workflow workflow = context.getFacts();
-        SupervisedSparkModelBuilder build = new SupervisedSparkModelBuilder();
-
-        return baseModels;
-    }
-*/
     public static void main(String[] args) throws IOException {
         //ReadCSV.buildBaseModels();
         ReadCSV build = new ReadCSV();
@@ -149,7 +98,6 @@ public class ReadCSV{
 
          JavaSparkContext sc = convertToRDD();
          JavaRDD<LabeledPoint> distData = sc.parallelize(labeledList);
-         //System.out.println(labeledList);
 
         return  distData;
 
@@ -157,83 +105,14 @@ public class ReadCSV{
     }
 
 
+    public Tuple2<JavaRDD<LabeledPoint>, JavaRDD<LabeledPoint>> preProcess() throws IOException {
+        ReadCSV read = new ReadCSV();
+        JavaRDD<LabeledPoint> inputData = read.readCSV();
+        JavaRDD<LabeledPoint>[] tmp = inputData.randomSplit(new double[]{0.7, 0.3});
 
-
-    public JavaPairRDD<Double, Double> buildBaseModels(String algorithmName, JavaRDD<LabeledPoint> training_data,
-                                                         JavaRDD<LabeledPoint> validation_data) throws IOException {
-        // Method for test how RandomForest works on iris dataset.
-        //TODO: Add another basemodel, combine predictions in a JavaPairRDD[]<LabeledPoint>
-
-
-
-
-        // Creating switch statement
-        MLConstants.SUPERVISED_ALGORITHM supervisedAlgorithm = MLConstants.SUPERVISED_ALGORITHM.valueOf(algorithmName);
-
-       RandomForestModel model;
-        DecisionTreeModel decisionTreeModel;
-
-        switch(supervisedAlgorithm){
-            case RANDOM_FOREST_CLASSIFICATION:
-                 model= buildRandomForest(training_data);
-                break;
-            case DECISION_TREE:
-                decisionTreeModel =  buildDecisionTree(training_data, validation_data);
-            break;
-
-        }
-        return null;
-
+        return new Tuple2<JavaRDD<LabeledPoint>, JavaRDD<LabeledPoint>>(tmp[0], tmp[1]);
     }
-    public RandomForestModel buildRandomForest(JavaRDD<LabeledPoint> trainingData){
 
-            RandomForestClassifier randomForestModel = new RandomForestClassifier();
-            Integer numClasses = 4;
-            HashMap<Integer, Integer> categoricalFeaturesInfo = new HashMap<Integer, Integer>();
-            Integer numTrees = 3; // Use more in practice.
-            String featureSubsetStrategy = "auto"; // Let the algorithm choose.
-            String impurity = "entropy";
-            Integer maxDepth = 5;
-            Integer maxBins = 32;
-            Integer seed = 12345;
-
-            final RandomForestModel randomForestmodel = randomForestModel.train(trainingData, numClasses,
-                    categoricalFeaturesInfo, numTrees, featureSubsetStrategy, impurity, maxDepth, maxBins,
-                    seed);
-
-            // remove from cache
-            trainingData.unpersist();
-            // add test data to cache
-           // validationData.cache();
-
-            //JavaPairRDD<Double, Double> predictionsAndLabels = randomForestModel.test(model, validationData).cache();
-            //System.out.println(predictionsAndLabels.values());
-
-            return randomForestmodel;
-        }
-
-    public  DecisionTreeModel buildDecisionTree(JavaRDD<LabeledPoint> trainingData, JavaRDD<LabeledPoint> validationData){
-
-        Integer numClasses = 4;
-        HashMap<Integer, Integer> categoricalFeaturesInfo = new HashMap<Integer, Integer>();
-        Integer maxDepth = 5;
-        Integer maxBins = 32;
-        String impurity = "entropy";
-
-        DecisionTree decisionTree = new DecisionTree();
-        DecisionTreeModel decisionTreeModel = decisionTree.train(trainingData, numClasses,
-                categoricalFeaturesInfo,impurity,
-                maxDepth,
-                maxBins);
-        trainingData.unpersist();
-        // add test data to cache
-        validationData.cache();
-
-        //JavaPairRDD<Double, Double> predictionsAndLabels = decisionTree.test(decisionTreeModel, validationData)
-              //  .cache();
-
-        return decisionTreeModel;
-    }
 
 
 }

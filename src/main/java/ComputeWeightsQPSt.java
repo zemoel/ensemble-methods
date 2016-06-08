@@ -60,7 +60,7 @@ public class ComputeWeightsQPSt {
 
 
         RDD<LabeledPoint> r = trainDataset.rdd();
-        ReadCSV build = new ReadCSV();
+        BaseModelsBuilder build = new BaseModelsBuilder();
 
 
         Tuple2<RDD<LabeledPoint>, RDD<LabeledPoint>>[] folds =  MLUtils.kFold(r, numFolds, seed, trainDataset.classTag());
@@ -71,11 +71,12 @@ public class ComputeWeightsQPSt {
         ArrayList<ArrayList<Double>> matrix = new ArrayList<ArrayList<Double>>();
 
         // TODO: For every Fold train and test a model passed as list of model, combine predictions, compute alpha
+        /*
         for (String model: baseModels) {
             int idx = 0;
             for (Tuple2<RDD<LabeledPoint>, RDD<LabeledPoint>> fold: folds) {
                 try {
-                    modelPredictions =  build.buildBaseModels(model, fold._1().toJavaRDD(),fold._2().toJavaRDD());
+                   // modelPredictions =  build.buildBaseModels(model, fold._1().toJavaRDD(),fold._2().toJavaRDD());
                     System.out.println(fold._2().collect().toString());
                     predictions = modelPredictions.keys().collect();
                     labels = modelPredictions.values().collect();
@@ -90,6 +91,7 @@ public class ComputeWeightsQPSt {
 
 
         }
+        */
 
         matrix.add((ArrayList<Double>) labels);
 
