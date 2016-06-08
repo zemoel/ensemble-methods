@@ -24,7 +24,7 @@ public class BaseModelsBuilder  {
 
     /**
 
-     create a switch statement for methods which call sparkmllib libraries and return models of MLModel type
+     create a switch statement for methods which call sparkmllibrary libraries and return models of MLModel type
       */
 
 
