@@ -102,7 +102,7 @@ public class ReadCSV{
         return level1Dataset ;
     }
 
-    public Vector listToVector(List<?> list){
+    public Vector listToVetor(List<?> list){
         List<Double> listDouble = (List<Double>) list;
 
         double[] doubleArray = new double[list.size()];
@@ -115,13 +115,41 @@ public class ReadCSV{
         return vector;
     }
 
+    public double[] listTodoubleArray(List<?> list){
+        List<Double> listDouble = (List<Double>) list;
+
+        double[] doubleArray = new double[list.size()];
+        for(int i= 0; i < listDouble.size(); i++){
+            doubleArray[i] = listDouble.get(i);
+
+        }
+
+        return doubleArray;
+    }
+    public double[] getLabels(JavaRDD<LabeledPoint> rddata){
+        List<LabeledPoint> list = rddata.collect();
+        double[] labels = new double[list.size()];
+        for(int i = 0; i<labels.length; i++) {
+            for(LabeledPoint item : list ){
+                labels[i] = item.label();
+            }
+
+
+        }
+
+        return labels;
+    }
+
+
     public List<String[]> LabeledpointToListStringArray( JavaRDD<LabeledPoint> rddata) {
         List<String[]> dataToBePredicted = new ArrayList<String[]>();
         List<LabeledPoint> list = rddata.collect();
 
+
         for(LabeledPoint item : list ){
             String[] labeledPointFeatures = new String[item.features().size()];
             double[] vector = item.features().toArray();
+
 
             for(int k= 0; k<vector.length; k++){
                 labeledPointFeatures[k] = (Double.toString(vector[k]));
