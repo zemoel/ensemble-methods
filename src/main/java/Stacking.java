@@ -10,7 +10,6 @@ import org.wso2.carbon.ml.core.impl.Predictor;
 import scala.Tuple2;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -32,8 +31,8 @@ public class Stacking {
 
     public void train( long modelId,JavaRDD<LabeledPoint> trainDataset, ArrayList<String> baseModels, Integer numFolds, Integer seed) throws NullPointerException, MLModelHandlerException, MLModelBuilderException {
 
-        // Step1. train list of level0models on cvdata
-        // Step2. get predictions of each List<?> and combine predictions to get level1 dataset
+        // Step1. train list of level0models on cvdata - DONE
+        // Step2. get predictions of each List<?> and combine predictions to get level1 dataset -DONE
         // Step3. train level1model on level1 dataset
         // Step4. train level0models on whole dataset and store list of models
 
@@ -51,25 +50,25 @@ public class Stacking {
 
 
         Tuple2<RDD<LabeledPoint>, RDD<LabeledPoint>>[] folds =  MLUtils.kFold(r, numFolds, seed, trainDataset.classTag());
-        List<LabeledPoint> labeledList = new ArrayList<LabeledPoint>();
         double[][] matrix = new double[(int)trainDataset.count()][baseModels.size()];
-        System.out.print("TRAIN" +trainDataset.count());
 
 
-
+        // JavaRDD<LabeledPoint> validationData
         int cnt = 0;
         for (String model: baseModels) {
+
             int idx = 0;
+             MLModel noCVbaseModel = build.buildBaseModels(model, trainDataset);
              for (Tuple2<RDD<LabeledPoint>, RDD<LabeledPoint>> fold: folds) {
 
-                 JavaRDD<LabeledPoint> validationData = fold._2().toJavaRDD();
-                 List<String[]> dataTobePredicted = convert.LabeledpointToListStringArray(validationData);
-                 MLModel basemodel = build.buildBaseModels(model, fold._1.toJavaRDD(), fold._2.toJavaRDD());
-                 Predictor predictor = new Predictor(modelId, basemodel,dataTobePredicted );
+                 //JavaRDD<LabeledPoint> validationData = fold._2().toJavaRDD();
+                 List<String[]> dataTobePredicted = convert.LabeledpointToListStringArray(fold._2().toJavaRDD());
+                 MLModel baseModel = build.buildBaseModels(model, fold._1.toJavaRDD());
+                 Predictor predictor = new Predictor(modelId, baseModel,dataTobePredicted );
                  List<?> predictions = predictor.predict();
                  double[] doubleArrayPredictions = convert.listTodoubleArray(predictions);
-                 //TODO: check which argument for matrix[][model?]
 
+                 //TODO: check which argument for matrix[][model?]
 
                  for (int i = 0; i < doubleArrayPredictions.length; i++) {
                      matrix[idx][cnt]= doubleArrayPredictions[i];
@@ -78,54 +77,38 @@ public class Stacking {
 
              }
             cnt ++;
-
-
-
-            System.out.println(cnt);
-
-
+            levelZeroModels.add(noCVbaseModel); // This doesnt work!!
         }
 
-
-        System.out.println("Predictions" + Arrays.deepToString(matrix));
-        System.out.print("TRAIN2" +trainDataset.count());
         List<LabeledPoint> levelOneDataset = convert.matrixtoLabeledPoint(matrix, convert.getLabels(trainDataset));
-        System.out.println(" LEVELONEDATASET" +levelOneDataset);
 
+       JavaRDD<LabeledPoint> levelOneDistData = Parallelize.convertToJavaRDD(levelOneDataset);
 
+        // Train level1 Classifier using levelOneDistData
 
-        // Convert List<?> to List<LabeledPoint>
+        levelOneModel = build.buildRandomForest(levelOneDistData);
 
-       // LabeledPoint labeledPredictions = new LabeledPoint(double label, Vector(features))
-
-
-        // Convert List<LabeledPoint> to JavaRDD<LabeledPoint>
-        //JavaSparkContext sc = convert.convertToRDD();
-        //JavaRDD<LabeledPoint> levelZeroDataset = sc.parallelize(labeledList);
-
-
-
-
-        // add predictions here to a list to form level1dataset
-        // Call RandomForest on level1 dataset and set it to levelOneModel, maybe reuse buildbasemodels randomforest
-        levelOneModel = null;
-        levelZeroModels = null;
 
 
     }
 
-    public void train( JavaRDD<LabeledPoint> trainDataset, ArrayList<String> baseModels) throws MLModelHandlerException, MLModelBuilderException {
+    public void train( JavaRDD<LabeledPoint> trainDataset, ArrayList<String> baseModels) throws MLModelHandlerException,
+            MLModelBuilderException {
 
         train(2, trainDataset,baseModels,2, 12345);
 
     }
 
-    public JavaPairRDD<Double, Double>  test(JavaRDD<LabeledPoint> testData){
+    public JavaPairRDD<Double, Double>  test(JavaRDD<LabeledPoint> testData, List<MLModel> levelZeroModels){
 
         // Step1. test level0 models trained on whole dataset using level0 test
         // step2. Combine predictions from step1 into level1 testset
         //Step3. test level1 model using level1 dataset
         // JavapairRDD<DOuble, Double>
+
+
+
+
 
         return null;
     }
