@@ -10,6 +10,7 @@ import org.wso2.carbon.ml.core.impl.Predictor;
 import scala.Tuple2;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -46,38 +47,52 @@ public class Stacking {
 
         ReadCSV convert = new ReadCSV();
         BaseModelsBuilder build =  new BaseModelsBuilder();
+        // create a map from feature vector to some index. use this index in folds to track which datapoint is being predicted.
 
 
         Tuple2<RDD<LabeledPoint>, RDD<LabeledPoint>>[] folds =  MLUtils.kFold(r, numFolds, seed, trainDataset.classTag());
         List<LabeledPoint> labeledList = new ArrayList<LabeledPoint>();
-        ArrayList<ArrayList<Double>> matrix = new ArrayList<ArrayList<Double>>();
-        List<?> predictions = null;
-        List<?> modelPredictions = null;
-       // Vector featureVector = Vectors.zeros()
+        double[][] matrix = new double[(int)trainDataset.count()][baseModels.size()];
+        System.out.print("TRAIN" +trainDataset.count());
 
-        // TODO: For every Fold train and test a model passed as list of model, combine predictions, compute alpha
+
+
+        int cnt = 0;
         for (String model: baseModels) {
+            int idx = 0;
              for (Tuple2<RDD<LabeledPoint>, RDD<LabeledPoint>> fold: folds) {
 
                  JavaRDD<LabeledPoint> validationData = fold._2().toJavaRDD();
                  List<String[]> dataTobePredicted = convert.LabeledpointToListStringArray(validationData);
                  MLModel basemodel = build.buildBaseModels(model, fold._1.toJavaRDD(), fold._2.toJavaRDD());
                  Predictor predictor = new Predictor(modelId, basemodel,dataTobePredicted );
-                 predictions = predictor.predict();
-                                  //TODO: There must be a way to convert javapairrdd to matrix
+                 List<?> predictions = predictor.predict();
+                 double[] doubleArrayPredictions = convert.listTodoubleArray(predictions);
+                 //TODO: check which argument for matrix[][model?]
+
+
+                 for (int i = 0; i < doubleArrayPredictions.length; i++) {
+                     matrix[idx][cnt]= doubleArrayPredictions[i];
+                     idx++;
+                 }
 
              }
+            cnt ++;
 
 
 
-            // Add the predictions of one model to one list
-            // call convert to listToVector here
-            // get level0m labels
-            // Create Labeledpredictions
-            System.out.println("Predictions" + modelPredictions);
+            System.out.println(cnt);
 
 
         }
+
+
+        System.out.println("Predictions" + Arrays.deepToString(matrix));
+        System.out.print("TRAIN2" +trainDataset.count());
+        List<LabeledPoint> levelOneDataset = convert.matrixtoLabeledPoint(matrix, convert.getLabels(trainDataset));
+        System.out.println(" LEVELONEDATASET" +levelOneDataset);
+
+
 
         // Convert List<?> to List<LabeledPoint>
 

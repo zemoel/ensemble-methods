@@ -17,10 +17,9 @@ import scala.Tuple2;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.Reader;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+
+import static org.apache.spark.mllib.linalg.Vectors.dense;
 
 
 public class ReadCSV{
@@ -61,7 +60,7 @@ public class ReadCSV{
 
 
 
-           LabeledPoint labeledRecord = new LabeledPoint(seenLabels.get(stringLabels), Vectors.dense(doubleArray));
+           LabeledPoint labeledRecord = new LabeledPoint(seenLabels.get(stringLabels), dense(doubleArray));
            labeledList.add(labeledRecord);
 
         }
@@ -86,7 +85,7 @@ public class ReadCSV{
 
 
 
-    public double[][] convertArrayListdoubleArray(ArrayList<ArrayList<Double>> matrix, int numOfModels, int trainDataSetSize){
+    public double[][] arrayListdoubleArray(ArrayList<ArrayList<Double>> matrix, int numOfModels, int trainDataSetSize){
         double[][] level1Dataset = new double[matrix.size()][matrix.get(0).size()];
 
         for(int i= 0; i<matrix.size(); i++){
@@ -110,7 +109,7 @@ public class ReadCSV{
             doubleArray[i] = listDouble.get(i);
 
         }
-        Vector vector = Vectors.dense(doubleArray);
+        Vector vector = dense(doubleArray);
 
         return vector;
     }
@@ -126,18 +125,34 @@ public class ReadCSV{
 
         return doubleArray;
     }
+
     public double[] getLabels(JavaRDD<LabeledPoint> rddata){
         List<LabeledPoint> list = rddata.collect();
+        System.out.println("LEVEL0DATASET"+list);
         double[] labels = new double[list.size()];
-        for(int i = 0; i<labels.length; i++) {
+          int i= 0;
             for(LabeledPoint item : list ){
+
                 labels[i] = item.label();
-            }
+                System.out.println("LABELSONEBYONE"+labels[i]);
+                i++;
 
 
         }
 
         return labels;
+    }
+
+
+    public List<LabeledPoint> matrixtoLabeledPoint(double[][] matrix, double[] labels){
+        List<LabeledPoint> labeledList = new ArrayList<LabeledPoint>();
+        LabeledPoint labeledRecord;
+
+        for(int i=0; i<matrix.length; i++) {
+                labeledRecord = new LabeledPoint(labels[i], Vectors.dense(matrix[i]));
+                labeledList.add(labeledRecord);
+        }
+        return  labeledList;
     }
 
 
