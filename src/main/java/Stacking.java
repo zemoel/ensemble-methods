@@ -18,7 +18,7 @@ import java.util.List;
 public class Stacking {
 
     private MLModel levelOneModel;
-    private List<MLModel> levelZeroModels;
+    private List<MLModel> levelZeroModels = new ArrayList<MLModel>();
     /**
      * This method trains an ComputeWeightsQPSt ensemble model
      *
@@ -59,9 +59,8 @@ public class Stacking {
 
             int idx = 0;
              MLModel noCVbaseModel = build.buildBaseModels(model, trainDataset);
-             for (Tuple2<RDD<LabeledPoint>, RDD<LabeledPoint>> fold: folds) {
 
-                 //JavaRDD<LabeledPoint> validationData = fold._2().toJavaRDD();
+             for (Tuple2<RDD<LabeledPoint>, RDD<LabeledPoint>> fold: folds) {
                  List<String[]> dataTobePredicted = convert.LabeledpointToListStringArray(fold._2().toJavaRDD());
                  MLModel baseModel = build.buildBaseModels(model, fold._1.toJavaRDD());
                  Predictor predictor = new Predictor(modelId, baseModel,dataTobePredicted );
@@ -74,18 +73,18 @@ public class Stacking {
                      matrix[idx][cnt]= doubleArrayPredictions[i];
                      idx++;
                  }
-
              }
             cnt ++;
             levelZeroModels.add(noCVbaseModel); // This doesnt work!!
+            
         }
+
 
         List<LabeledPoint> levelOneDataset = convert.matrixtoLabeledPoint(matrix, convert.getLabels(trainDataset));
 
-       JavaRDD<LabeledPoint> levelOneDistData = Parallelize.convertToJavaRDD(levelOneDataset);
+        JavaRDD<LabeledPoint> levelOneDistData = Parallelize.convertToJavaRDD(levelOneDataset);
 
         // Train level1 Classifier using levelOneDistData
-
         levelOneModel = build.buildRandomForest(levelOneDistData);
 
 
