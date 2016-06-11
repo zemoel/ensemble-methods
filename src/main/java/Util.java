@@ -2,6 +2,8 @@ import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.mllib.linalg.Vector;
 import org.apache.spark.mllib.linalg.Vectors;
 import org.apache.spark.mllib.regression.LabeledPoint;
+import org.apache.spark.rdd.RDD;
+import scala.Tuple2;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -14,6 +16,7 @@ import static org.apache.spark.mllib.linalg.Vectors.dense;
  * Created by pekasa on 09.06.16.
  */
 public class Util {
+
     public double[][] arrayListdoubleArray(ArrayList<ArrayList<Double>> matrix, int numOfModels, int trainDataSetSize){
         double[][] level1Dataset = new double[matrix.size()][matrix.get(0).size()];
 
@@ -72,6 +75,17 @@ public class Util {
         return labels;
     }
 
+    public double[] getLabelsFolds( Tuple2<RDD<LabeledPoint>, RDD<LabeledPoint>>[]  folds, int numOfDatapoints){
+        double[] labels = new double[numOfDatapoints];
+        int idx = 0;
+        for(Tuple2<RDD<LabeledPoint>, RDD<LabeledPoint>> f : folds){
+            for (LabeledPoint p : f._2().toJavaRDD().collect()){
+                labels[idx] = p.label();
+                idx++;
+            }
+        }
+        return labels;
+    }
 
     public List<LabeledPoint> matrixtoLabeledPoint(double[][] matrix, double[] labels){
         List<LabeledPoint> labeledList = new ArrayList<LabeledPoint>();
@@ -112,7 +126,7 @@ public class Util {
 
     // Method to map feature vector to datapoints
 
-    public Map<Vector, Integer> featureToDoubleMap(JavaRDD<LabeledPoint>trainDataSet){
+    public Map<Vector, Integer> featureToIntegerMap(JavaRDD<LabeledPoint>trainDataSet){
 
 
         List<LabeledPoint> list = trainDataSet.collect();
