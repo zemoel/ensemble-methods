@@ -1,14 +1,13 @@
+import com.google.common.primitives.Doubles;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.mllib.regression.LabeledPoint;
-import org.apache.spark.mllib.tree.model.RandomForestModel;
 import org.apache.spark.mllib.util.MLUtils;
 import org.apache.spark.rdd.RDD;
 import org.wso2.carbon.ml.commons.domain.MLModel;
 import org.wso2.carbon.ml.core.exceptions.MLModelBuilderException;
 import org.wso2.carbon.ml.core.exceptions.MLModelHandlerException;
 import org.wso2.carbon.ml.core.impl.Predictor;
-import org.wso2.carbon.ml.core.spark.algorithms.RandomForestClassifier;
 import scala.Tuple2;
 
 import java.io.Serializable;
@@ -20,7 +19,7 @@ import java.util.List;
  */
 public class Stacking implements Serializable {
 
-    private RandomForestModel levelOneModel;
+    private MLModel levelOneModel;
     private List<MLModel> levelZeroModels = new ArrayList<MLModel>();
     public Stacking(){
 
@@ -53,9 +52,7 @@ public class Stacking implements Serializable {
 
         RDD<LabeledPoint> r = trainDataset.rdd();
 
-
         // create a map from feature vector to some index. use this index in folds to track which datapoint is being predicted.
-
 
         Tuple2<RDD<LabeledPoint>, RDD<LabeledPoint>>[] folds =  MLUtils.kFold(r, numFolds, seed,
                 trainDataset.classTag());
@@ -97,7 +94,7 @@ public class Stacking implements Serializable {
 
         // Train level1 Classifier using levelOneDistData
         //levelOneModel = build.RandomForest(levelOneDistData);
-        levelOneModel = build.RandomForest(levelOneDistData);
+        levelOneModel = build.buildRandomForest(levelOneDistData);
 
 
 
@@ -117,9 +114,8 @@ public class Stacking implements Serializable {
         // step2. Combine predictions from step1 into level1 testset
         //Step3. test level1 model using level1 dataset
 
-        // Predict on levelZerotestdataset to get levelOneTestDataset
+        // Predict on levelZeroTestDataset to get levelOneTestDataset
         Util convert = new Util();
-        BaseModelsBuilder build =  new BaseModelsBuilder();
         double[][] matrix = new double[(int)testDataset.count()][levelZeroModels.size()];
 
         List<String[]> dataTobePredicted = convert.LabeledpointToListStringArray(testDataset);
@@ -138,31 +134,21 @@ public class Stacking implements Serializable {
         }
         List<LabeledPoint> levelOneTestDataset = convert.matrixtoLabeledPoint(matrix, convert.getLabels(testDataset));
 
+
         JavaRDD<LabeledPoint> levelOneDistTestData = Parallelize.convertToJavaRDD(levelOneTestDataset);
+        List<String[]> LevelOneTestDatasetList = convert.LabeledpointToListStringArray(levelOneDistTestData);
+        Predictor predictor = new Predictor(modelId, levelOneModel,LevelOneTestDatasetList);
 
-       // final Externalizable model = levelOneModel.getModel();
-        // levelOneModel.setAlgorithmName(MLConstants.SUPERVISED_ALGORITHM.RANDOM_FOREST_CLASSIFICATION.toString());
-        //final MLRandomForestModel rf = new MLRandomForestModel();
-        //levelOneModel.setModel(rf);
+        List<Double> levelOnePredictions = (List<Double>) predictor.predict();
+        List<Double> labelsList = Doubles.asList(convert.getLabels(testDataset));
 
-  /*
-        return levelOneDistTestData.mapToPair(new PairFunction<LabeledPoint, Double, Double>() {
-            // TODO: assign serialUID and check if @override method needed.
+        List<Tuple2<Double, Double>> list = new ArrayList<Tuple2<Double, Double>>();
+        for(int j = 0; j <levelOnePredictions.size();j++){
+            list.add(new Tuple2<Double, Double>(levelOnePredictions.get(j), labelsList.get(j)));
 
-            public Tuple2<Double, Double> call(LabeledPoint labeledPoint) {
-                return new Tuple2<Double, Double>(levelOneModel.predict(labeledPoint.features()), labeledPoint.label());
-            }
-        });
-        */
-        System.out.println("MODEL" + levelOneModel);
-        System.out.println("TEST" + levelOneDistTestData);
-
-
-        RandomForestClassifier randomForestClassifier = new RandomForestClassifier();
-        JavaPairRDD<Double, Double> predictionsAndLabels = randomForestClassifier.test(levelOneModel,
-                levelOneDistTestData).cache();
-        System.out.println("PRED" + predictionsAndLabels.collect());
-        return predictionsAndLabels;
+        }
+        System.out.println("HERE" +(Parallelize.parallelizeList().parallelizePairs(list)).collect());
+        return Parallelize.parallelizeList().parallelizePairs(list);
 
     }
 
